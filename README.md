@@ -1,2 +1,2 @@
 # PCR-and-PLS-Analysis-on-the-Dataset
-This project, developed in R, explores Principal Component Regression (PCR) and Partial Least Squares (PLS) Regression as methodologies for analyzing the factors influencing graduation rates (Grad.Rate) in U.S. colleges and universities.
+This project, developed in R, explores Principal Component Regression (PCR) and Partial Least Squares (PLS) Regression as methodologies for analyzing the factors influencing graduation rates (Grad.Rate) in U.S. colleges and universities. The analysis is based on the College dataset from the ISLR2 package, which provides comprehensive data on various characteristics of higher education institutions.
