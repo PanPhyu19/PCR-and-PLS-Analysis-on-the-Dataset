@@ -1,0 +1,150 @@
+---
+title: "Graduation Rate Drivers – PCR vs PLS Modelling (R)"
+author: "Pan Phyu Phyu Hmwe"
+format: docx
+editor: visual
+---
+
+## Executive Summary
+
+This project evaluates two modelling approaches, Principal Component Regression (PCR) and Partial Least Squares (PLS), to predict and understand graduation rate performance when many institutional variables are correlated. Using cross-validation and an out-of-sample test set, PLS achieved lower prediction error than PCR (lower test MSE), making it the preferred approach for performance monitoring and forecasting in high-dimensional settings.
+
+## Business Context 
+
+Graduation rate is commonly used as an outcome indicator for education performance monitoring and planning. When decision-makers have many correlated metrics (admissions, spending, staff ratios, student mix, etc.), traditional regression can become unstable due to multicollinearity. **PCR and PLS** address this by reducing dimensionality while retaining predictive signal, supporting more stable reporting, monitoring, and scenario exploration.
+
+## Objectives
+
+-   Build a reliable model to predict graduation rate with correlated predictors.
+-   Select an appropriate number of components to balance accuracy and simplicity.
+-   Compare PCR vs PLS and summarise implications for performance monitoring and decision-making.
+
+## Data
+
+-   **Dataset:** ISLR2 `College` dataset (777 institutions, 17 predictors)\
+-   **Target:** `Grad.Rate` (graduation rate)\
+-   **Pre-processing:** Convert `Private` to numeric (0/1) and scale predictors.
+
+```{r}
+library(ISLR2)
+library(dplyr)
+library(tidyr)
+library(pls)
+
+data("College")
+college.df <- College
+
+# Convert 'Private' to numeric (Yes=1, No=0)
+college.df$Private <- as.character(college.df$Private)
+college.df$Private <- ifelse(college.df$Private == "Yes", 1, 0)
+
+head(college.df)
+```
+
+## Method Overview
+
+### Validation design
+
+-   **Holdout evaluation:** 50/50 train–test split for final performance estimate.
+-   **Model selection:** Cross-validation (CV) on training data to select number of components.
+
+```{r}
+set.seed(1)
+
+# 50/50 split
+train <- college.df %>% sample_frac(0.5)
+test  <- college.df %>% setdiff(train)
+
+# matrices for consistent prediction
+x_test <- model.matrix(Grad.Rate ~ ., test)[, -1]
+y_test <- test$Grad.Rate
+```
+
+## Model 1: Principal Component Regression (PCR)
+
+### Cross-validation to select components
+
+```{r}
+set.seed(1)
+pcr_model <- pcr(Grad.Rate ~ ., data = college.df, scale = TRUE, validation = "CV")
+summary(pcr_model)
+
+# CV error vs components
+validationplot(pcr_model, val.type = "MSEP")
+```
+
+**Interpretation (high level):** CV error drops quickly with early components then levels off, suggesting diminishing returns after a small number of components.
+
+### Test performance (PCR)
+
+```{r}
+# Fit PCR on training set
+pcr_fit2 <- pcr(Grad.Rate ~ ., data = train, scale = TRUE, validation = "CV")
+validationplot(pcr_fit2, val.type = "MSEP")
+
+# Use 5 components (based on CV)
+pcr_pred <- predict(pcr_fit2, x_test, ncomp = 5)
+pcr_mse <- mean((pcr_pred - y_test)^2)
+pcr_mse
+```
+
+## Model 2: Partial Least Squares (PLS)
+
+### Cross-validation to select components
+
+```{r}
+pls_fit <- plsr(Grad.Rate ~ ., data = train, scale = TRUE, validation = "CV")
+summary(pls_fit)
+
+validationplot(pls_fit, val.type = "MSEP")
+```
+
+### Test performance (PLS)
+
+```{r}
+# Use 3 components (based on CV)
+pls_pred <- predict(pls_fit, x_test, ncomp = 3)
+pls_mse <- mean((pls_pred - y_test)^2)
+pls_mse
+```
+
+## Key Results
+
+-   **PCR (5 components) test MSE:** `r round(pcr_mse, 4)`\
+-   **PLS (3 components) test MSE:** `r round(pls_mse, 4)`
+
+**Conclusion:** PLS achieved a lower test MSE than PCR, suggesting better predictive performance, likely because PLS uses the response variable when deriving components.
+
+## What this means for decision-making
+
+-   **Better forecasting with fewer components:** PLS provides improved accuracy with a simpler representation, making it suitable for performance monitoring and reporting.
+-   **More stable modelling under multicollinearity:** Component-based regression helps reduce noise from redundant predictors and produces more reliable estimates.
+-   **Practical use:** These models can support monitoring dashboards (predicted vs actual), early-warning flags, and scenario exploration alongside other evidence.
+-   
+
+### Model performance and selection
+
+Partial Least Squares (PLS) achieved a lower test Mean Squared Error than Principal Component Regression (PCR) while using fewer components, indicating stronger predictive performance with a simpler model structure. This demonstrates that incorporating the response variable when deriving components improves forecasting accuracy in high-dimensional datasets with correlated predictors.
+
+### Dimensionality reduction with retained analytical value
+
+The final PLS model captured a substantial proportion of the variance in both the predictors and the graduation rate outcome using only three components. This shows that a small number of derived components can efficiently summarise complex institutional data while preserving the key information required for reliable prediction and analysis.
+
+### Stability in multicollinear environments
+
+By transforming the original variables into orthogonal components, the model reduced the impact of multicollinearity and produced more stable and interpretable predictions. This approach is particularly suitable for performance monitoring scenarios where multiple related indicators are analysed simultaneously.
+
+### Implications for performance monitoring and planning
+
+In a real-world context, the selected PLS model provides a practical and scalable method for forecasting graduation rate outcomes and tracking performance over time. The reduced model complexity supports clearer reporting, easier maintenance, and more consistent results, enabling data-driven planning and more effective identification of institutions that are over- or under-performing.
+
+## Recommendations for Next Steps
+
+-   Create stakeholder-ready outputs: a short insight summary, key visuals (error vs components), and a clear narrative of findings.
+-   If used for monitoring: retrain on updated data periodically, validate performance each cycle, and track data/model drift.
+-   Improve explainability: review component loadings and summarise which types of factors drive predictions.
+-   Optional: publish a simple dashboard (Tableau/Power BI) showing predicted vs actual graduation rate and summary KPIs.
+
+## Tools
+
+R / RStudio (`ISLR2`, `dplyr`, `tidyr`, `pls`)
